@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DeskBuddy | ESP32 Desk Companion</title>
+<meta name="description" content="A compact ESP32 desk companion with live weather, Home Assistant integration, a class schedule, focus timer, and a browser-based configurator. Built for the Cheap Yellow Display.">
+<style>
+:root{
+  --bg:#080d14;--bg2:#0d1420;--panel:#111827;--panel2:#161f2e;
+  --border:#1e2d42;--border2:#2d4060;
+  --text:#edf2f7;--dim:#7a90a8;--dim2:#4a6080;
+  --accent:#38bdf8;--accent2:#0ea5e9;
+  --green:#34d399;--yellow:#fbbf24;--red:#f87171;
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;line-height:1.6;}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,13,20,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);height:58px;display:flex;align-items:center;padding:0 32px;gap:32px;}
+.nav-logo{font-size:16px;font-weight:800;background:linear-gradient(135deg,#dbeafe,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap;}
+.nav-links{display:flex;gap:4px;flex:1;}
+.nav-links a{color:var(--dim);text-decoration:none;font-size:13px;font-weight:500;padding:6px 12px;border-radius:8px;transition:all .15s;white-space:nowrap;}
+.nav-links a:hover{color:var(--text);background:rgba(255,255,255,.05);}
+.nav-cta{display:flex;gap:8px;align-items:center;}
+.btn-gh{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--dim);text-decoration:none;padding:7px 14px;border-radius:9px;border:1px solid var(--border2);background:rgba(255,255,255,.04);transition:all .15s;white-space:nowrap;}
+.btn-gh:hover{color:var(--text);border-color:var(--border2);background:rgba(255,255,255,.08);}
+.btn-start{font-size:12px;font-weight:700;color:#001018;background:var(--accent);text-decoration:none;padding:8px 18px;border-radius:9px;transition:background .15s;white-space:nowrap;}
+.btn-start:hover{background:var(--accent2);}
+
+/* ── SECTIONS ── */
+section{padding:96px 32px;}
+.container{max-width:1100px;margin:0 auto;}
+.sec-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
+.sec-title{font-size:36px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin-bottom:16px;}
+.sec-sub{font-size:17px;color:var(--dim);max-width:580px;line-height:1.65;}
+
+/* ── HERO ── */
+#hero{padding:140px 32px 80px;background:radial-gradient(ellipse 80% 60% at 60% -10%,rgba(56,189,248,.08) 0%,transparent 70%);}
+.hero-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;}
+.hero-label{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);border-radius:999px;padding:5px 14px;margin-bottom:24px;}
+.hero-title{font-size:56px;font-weight:900;letter-spacing:-.03em;line-height:1.05;margin-bottom:20px;}
+.hero-title span{background:linear-gradient(135deg,#dbeafe 0%,var(--accent) 50%,#818cf8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub{font-size:18px;color:var(--dim);line-height:1.7;margin-bottom:36px;max-width:480px;}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap;}
+.btn-hero-primary{font-size:14px;font-weight:700;color:#001018;background:var(--accent);text-decoration:none;padding:14px 28px;border-radius:12px;transition:all .15s;display:inline-flex;align-items:center;gap:8px;}
+.btn-hero-primary:hover{background:var(--accent2);transform:translateY(-1px);}
+.btn-hero-secondary{font-size:14px;font-weight:600;color:var(--text);text-decoration:none;padding:13px 24px;border-radius:12px;border:1px solid var(--border2);background:rgba(255,255,255,.04);transition:all .15s;display:inline-flex;align-items:center;gap:8px;}
+.btn-hero-secondary:hover{background:rgba(255,255,255,.08);border-color:var(--dim2);}
+.hero-stats{display:flex;gap:28px;margin-top:40px;flex-wrap:wrap;}
+.hero-stat{display:flex;flex-direction:column;gap:2px;}
+.hero-stat-val{font-size:22px;font-weight:800;color:var(--text);}
+.hero-stat-label{font-size:11px;color:var(--dim);font-weight:500;}
+.hero-img-wrap{position:relative;display:flex;justify-content:center;align-items:center;}
+.hero-img-glow{position:absolute;width:340px;height:340px;background:radial-gradient(circle,rgba(56,189,248,.15) 0%,transparent 70%);border-radius:50%;}
+.hero-img{width:100%;max-width:420px;border-radius:24px;box-shadow:0 40px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06);position:relative;}
+
+/* ── PILLARS ── */
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:80px;}
+.pillar{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:28px;}
+.pillar-icon{font-size:28px;margin-bottom:14px;line-height:1;}
+.pillar-title{font-size:15px;font-weight:700;margin-bottom:8px;}
+.pillar-desc{font-size:13px;color:var(--dim);line-height:1.6;}
+
+/* ── FEATURES ── */
+#features{background:var(--bg2);}
+.base-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:48px;}
+.base-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;}
+.base-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;}
+.base-card-icon{font-size:20px;}
+.base-card-info .base-card-title{font-size:13px;font-weight:600;}
+.base-card-info .base-card-note{font-size:11px;color:var(--dim);margin-top:2px;}
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+.feat-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:all .18s;}
+.feat-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.feat-card.builtin{border-color:rgba(52,211,153,.25);background:rgba(52,211,153,.03);}
+.feat-card.soon{opacity:.55;}
+.feat-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.feat-header{display:flex;align-items:center;gap:10px;}
+.feat-icon{font-size:22px;line-height:1;}
+.feat-title{font-size:14px;font-weight:700;}
+.feat-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;color:var(--dim);background:rgba(255,255,255,.04);border:1px solid var(--border);}
+.tag.page{color:#a78bfa;border-color:rgba(167,139,250,.3);}
+.tag.widget{color:#38bdf8;border-color:rgba(56,189,248,.3);}
+.tag.api{color:#34d399;border-color:rgba(52,211,153,.3);}
+.feat-desc{font-size:12px;color:var(--dim);line-height:1.5;}
+.badge-builtin{font-size:10px;font-weight:700;color:var(--green);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:999px;padding:2px 8px;white-space:nowrap;}
+.badge-soon{font-size:10px;font-weight:700;color:var(--dim);background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:999px;padding:2px 8px;}
+.feat-cats{display:flex;flex-direction:column;gap:40px;}
+.feat-cat-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.feat-cat-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);white-space:nowrap;}
+.feat-cat-line{flex:1;height:1px;background:var(--border);}
+
+/* ── SCREENSHOTS ── */
+#screenshots{background:var(--bg);}
+.screens-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;}
+.screen-wrap{background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.screen-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:8px;}
+.screen-dots{display:flex;gap:5px;}
+.screen-dot{width:10px;height:10px;border-radius:50%;}
+.screen-url{flex:1;background:var(--bg2);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--dim);margin:0 10px;}
+.screen-wrap img{width:100%;display:block;}
+.screen-label{padding:12px 14px;font-size:12px;color:var(--dim);font-weight:500;}
+
+/* ── GETTING STARTED ── */
+#getting-started{background:var(--bg2);}
+.steps{display:flex;flex-direction:column;gap:0;margin-top:40px;position:relative;}
+.step{display:grid;grid-template-columns:56px 1fr;gap:24px;padding-bottom:40px;}
+.step:last-child{padding-bottom:0;}
+.step-left{display:flex;flex-direction:column;align-items:center;gap:0;}
+.step-num{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#001018;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.step-line{flex:1;width:2px;background:var(--border);margin-top:8px;}
+.step:last-child .step-line{display:none;}
+.step-title{font-size:16px;font-weight:700;margin-bottom:8px;margin-top:8px;}
+.step-desc{font-size:14px;color:var(--dim);line-height:1.6;margin-bottom:12px;}
+pre{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;font:13px/1.6 'Cascadia Code','Fira Code',ui-monospace,monospace;color:#94d2bd;overflow-x:auto;margin-bottom:8px;}
+pre .cm{color:var(--dim);}
+pre .kw{color:var(--accent);}
+code{background:rgba(255,255,255,.07);border-radius:4px;padding:1px 6px;font:12px/1 ui-monospace,monospace;color:var(--accent);}
+.hw-table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px;}
+.hw-table th{text-align:left;padding:10px 14px;color:var(--dim);font-weight:600;border-bottom:1px solid var(--border);font-size:11px;letter-spacing:.06em;text-transform:uppercase;}
+.hw-table td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text);}
+.hw-table tr:last-child td{border-bottom:none;}
+.hw-table a{color:var(--accent);text-decoration:none;}
+.hw-table a:hover{text-decoration:underline;}
+.info-box{background:var(--panel2);border:1px solid rgba(56,189,248,.2);border-radius:var(--radius);padding:20px 22px;margin-top:16px;}
+.info-box h4{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:10px;}
+.info-box ul{list-style:none;display:flex;flex-direction:column;gap:6px;}
+.info-box li{font-size:13px;color:var(--dim);padding-left:16px;position:relative;line-height:1.5;}
+.info-box li::before{content:'→';position:absolute;left:0;color:var(--accent);}
+.flash-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
+.flash-table th{text-align:left;padding:8px 12px;color:var(--dim);font-size:11px;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border);}
+.flash-table td{padding:10px 12px;border-bottom:1px solid var(--border);}
+.flash-table tr:last-child td{border-bottom:none;}
+.pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,.12);color:var(--accent);border:1px solid rgba(56,189,248,.25);}
+.pill.usb{background:rgba(251,191,36,.1);color:var(--yellow);border-color:rgba(251,191,36,.25);}
+
+/* ── DEVICE WEB UI ── */
+#webui{background:var(--bg);}
+.webui-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start;margin-top:40px;}
+.webui-list{display:flex;flex-direction:column;gap:10px;}
+.webui-item{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start;}
+.webui-item-icon{font-size:20px;line-height:1;flex-shrink:0;margin-top:1px;}
+.webui-item-title{font-size:13px;font-weight:700;margin-bottom:3px;}
+.webui-item-desc{font-size:12px;color:var(--dim);line-height:1.5;}
+
+/* ── API ── */
+#api{background:var(--bg2);}
+.api-endpoints{display:flex;flex-direction:column;gap:20px;margin-top:40px;}
+.api-block{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.api-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.method{font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px;letter-spacing:.04em;}
+.method.get{background:rgba(52,211,153,.15);color:var(--green);border:1px solid rgba(52,211,153,.3);}
+.method.post{background:rgba(56,189,248,.12);color:var(--accent);border:1px solid rgba(56,189,248,.25);}
+.api-path{font:600 13px/1 ui-monospace,monospace;color:var(--text);}
+.api-desc{margin-left:auto;font-size:12px;color:var(--dim);}
+.api-body{padding:0;}
+.api-body pre{border:none;border-radius:0;margin:0;background:var(--panel2);}
+
+/* ── CONFIGURE ── */
+#configure{background:var(--bg);}
+.cfg-inner{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;margin-top:40px;}
+.cfg-form{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:28px;}
+.cfg-form-title{font-size:14px;font-weight:700;margin-bottom:20px;color:var(--text);}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.field label{font-size:12px;font-weight:600;color:var(--dim);}
+.field input,.field select{background:var(--bg2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px;font:14px/1 system-ui;width:100%;transition:border-color .15s;}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);}
+.field input[type=password]{letter-spacing:.05em;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.btn-dl{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:12px;font:700 14px/1 system-ui;cursor:pointer;background:linear-gradient(135deg,#1565c0,#1976d2);color:#e3f2fd;border:1px solid rgba(21,101,192,.5);box-shadow:0 4px 16px rgba(13,71,161,.35);transition:all .15s;margin-top:8px;}
+.btn-dl:hover{background:linear-gradient(135deg,#1976d2,#1e88e5);box-shadow:0 6px 20px rgba(13,71,161,.5);transform:translateY(-1px);}
+.btn-save-sm{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;border-radius:10px;font:600 13px/1 system-ui;cursor:pointer;background:var(--panel2);color:var(--dim);border:1px solid var(--border);transition:all .15s;margin-top:8px;}
+.btn-save-sm:hover{border-color:var(--border2);color:var(--text);}
+.cfg-steps{display:flex;flex-direction:column;gap:0;}
+.cfg-step{display:flex;gap:16px;padding-bottom:28px;}
+.cfg-step:last-child{padding-bottom:0;}
+.cfg-step-num{width:28px;height:28px;border-radius:50%;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);color:var(--accent);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+.cfg-step-title{font-size:14px;font-weight:700;margin-bottom:4px;}
+.cfg-step-desc{font-size:13px;color:var(--dim);line-height:1.6;}
+
+/* ── FOOTER ── */
+footer{background:var(--bg2);border-top:1px solid var(--border);padding:48px 32px;}
+.footer-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;}
+.footer-logo{font-size:15px;font-weight:800;background:linear-gradient(135deg,#dbeafe,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.footer-links{display:flex;gap:20px;}
+.footer-links a{font-size:12px;color:var(--dim);text-decoration:none;transition:color .15s;}
+.footer-links a:hover{color:var(--text);}
+.footer-credit{font-size:11px;color:var(--dim2);max-width:400px;line-height:1.5;}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;top:76px;right:20px;display:flex;flex-direction:column-reverse;gap:10px;z-index:600;pointer-events:none;max-width:360px;}
+.toast{background:var(--panel2);border:1px solid var(--border2);border-radius:14px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;pointer-events:all;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:toast-in .25s cubic-bezier(.34,1.56,.64,1);}
+.toast.ok{border-color:rgba(52,211,153,.35);background:rgba(18,40,30,.97);}
+.toast.err{border-color:rgba(248,113,113,.35);background:rgba(40,18,18,.97);}
+.toast-icon{font-size:18px;line-height:1;flex-shrink:0;}
+.toast-body{flex:1;}
+.toast-title{font-size:13px;font-weight:700;}
+.toast-msg{font-size:12px;color:var(--dim);margin-top:3px;line-height:1.4;}
+.toast-close{background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px;padding:0;transition:color .1s;flex-shrink:0;}
+.toast-close:hover{color:var(--text);}
+@keyframes toast-in{from{opacity:0;transform:translateY(-8px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes toast-out{from{opacity:1}to{opacity:0;transform:scale(.94)}}
+.toast.dying{animation:toast-out .2s ease-in forwards;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  nav{padding:0 20px;gap:16px;}
+  .nav-links{display:none;}
+  #hero{padding:120px 20px 60px;}
+  .hero-inner{grid-template-columns:1fr;gap:40px;}
+  .hero-img-wrap{order:-1;}
+  .hero-title{font-size:38px;}
+  .pillars{grid-template-columns:1fr;}
+  section{padding:64px 20px;}
+  .screens-grid{grid-template-columns:1fr;}
+  .webui-grid{grid-template-columns:1fr;}
+  .cfg-inner{grid-template-columns:1fr;}
+  .sec-title{font-size:28px;}
+}
+</style>
+</head>
+<body>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">🖥 DeskBuddy</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#screenshots">Screenshots</a>
+    <a href="#getting-started">Get started</a>
+    <a href="#webui">Device UI</a>
+    <a href="#api">API</a>
+    <a href="#configure">Configure</a>
+  </div>
+  <div class="nav-cta">
+    <a class="btn-gh" href="https://github.com/tiantiankaixingg/Deskbuddy" target="_blank">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+    <a class="btn-start" href="#getting-started">Get started →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-inner">
+    <div class="hero-text">
+      <div class="hero-label">ESP32-2432S028 · Open source · MIT</div>
+      <h1 class="hero-title">Your desk,<br><span>always informed</span></h1>
+      <p class="hero-sub">A compact touchscreen dashboard for your desk. Live weather, Home Assistant sensors, a class schedule, focus timer, and a browser-based configurator. Runs on a $10 ESP32 display.</p>
+      <div class="hero-actions">
+        <a class="btn-hero-primary" href="#getting-started">Get started →</a>
+        <a class="btn-hero-secondary" href="https://github.com/tiantiankaixingg/Deskbuddy" target="_blank">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="hero-stat-val">6</span><span class="hero-stat-label">Screen pages</span></div>
+        <div class="hero-stat"><span class="hero-stat-val">11</span><span class="hero-stat-label">Home widgets</span></div>
+        <div class="hero-stat"><span class="hero-stat-val">~$10</span><span class="hero-stat-label">Hardware cost</span></div>
+        <div class="hero-stat"><span class="hero-stat-val">MIT</span><span class="hero-stat-label">License</span></div>
+      </div>
+    </div>
+    <div class="hero-img-wrap">
+      <div class="hero-img-glow"></div>
+      <img class="hero-img" src="device.jpg" alt="DeskBuddy on a desk in a 3D printed stand">
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="pillars">
+      <div class="pillar">
+        <div class="pillar-icon">🌐</div>
+        <div class="pillar-title">No cloud, no subscriptions</div>
+        <div class="pillar-desc">Weather from Open-Meteo. Home Assistant over LAN. Time from NTP. Everything runs on your local network. No accounts, no API keys.</div>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">⚡</div>
+        <div class="pillar-title">Configure without reflashing</div>
+        <div class="pillar-desc">Open the device IP in any browser to change themes, widget layout, HA sensors, timer presets, and more. Changes apply instantly. After the first flash, OTA means no more USB cables.</div>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">🔧</div>
+        <div class="pillar-title">Built to extend</div>
+        <div class="pillar-desc">Clean widget system, REST API, and a Python configurator to build and flash from a browser. A solid base to build your own features on top of.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <div class="sec-label">What's included</div>
+    <h2 class="sec-title">Everything built in</h2>
+    <p class="sec-sub">Everything here ships in the firmware. No extra installs, no accounts needed. Coming-soon features are on the roadmap.</p>
+
+    <div style="margin-top:40px;">
+      <div class="feat-cat-head"><span class="feat-cat-label">Always included: base firmware</span><span class="feat-cat-line"></span></div>
+      <div class="base-grid">
+        <div class="base-card"><div class="base-dot"></div><div class="base-card-icon">🕐</div><div class="base-card-info"><div class="base-card-title">Clock & NTP</div><div class="base-card-note">Time, date, sunrise/sunset</div></div></div>
+        <div class="base-card"><div class="base-dot"></div><div class="base-card-icon">🌤</div><div class="base-card-info"><div class="base-card-title">Weather</div><div class="base-card-note">Open-Meteo, no API key</div></div></div>
+        <div class="base-card"><div class="base-dot"></div><div class="base-card-icon">⏱</div><div class="base-card-info"><div class="base-card-title">Focus timer</div><div class="base-card-note">6 configurable presets</div></div></div>
+        <div class="base-card"><div class="base-dot"></div><div class="base-card-icon">📝</div><div class="base-card-info"><div class="base-card-title">Notes page</div><div class="base-card-note">Synced from web UI or API</div></div></div>
+        <div class="base-card"><div class="base-dot"></div><div class="base-card-icon">📶</div><div class="base-card-info"><div class="base-card-title">Status page</div><div class="base-card-note">WiFi, uptime, IP (tap ⓘ)</div></div></div>
+        <div class="base-card"><div class="base-dot"></div><div class="base-card-icon">🎨</div><div class="base-card-info"><div class="base-card-title">Theme system</div><div class="base-card-note">12 accents, 10 backgrounds</div></div></div>
+        <div class="base-card"><div class="base-dot"></div><div class="base-card-icon">🧩</div><div class="base-card-info"><div class="base-card-title">Widget layout</div><div class="base-card-note">Drag & drop in web UI</div></div></div>
+      </div>
+    </div>
+
+    <div class="feat-cats" id="feat-cats"></div>
+  </div>
+</section>
+
+<!-- SCREENSHOTS -->
+<section id="screenshots">
+  <div class="container">
+    <div class="sec-label">See it in action</div>
+    <h2 class="sec-title">Browser configurator & Device UI</h2>
+    <p class="sec-sub">The Python configurator runs locally and handles everything from compiling to OTA flashing. The Device UI lives on the device itself and needs no software at all.</p>
+
+    <div class="screens-grid">
+      <div class="screen-wrap">
+        <div class="screen-bar">
+          <div class="screen-dots"><div class="screen-dot" style="background:#f87171"></div><div class="screen-dot" style="background:#fbbf24"></div><div class="screen-dot" style="background:#34d399"></div></div>
+          <div class="screen-url">localhost:5000 · Features</div>
+        </div>
+        <img src="configurator_features.png" alt="Configurator features tab showing module cards">
+        <div class="screen-label">Configurator: feature overview with links to device UI</div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen-bar">
+          <div class="screen-dots"><div class="screen-dot" style="background:#f87171"></div><div class="screen-dot" style="background:#fbbf24"></div><div class="screen-dot" style="background:#34d399"></div></div>
+          <div class="screen-url">localhost:5000 · Settings</div>
+        </div>
+        <img src="configurator_settings.png" alt="Configurator settings tab with build bar">
+        <div class="screen-label">Configurator: WiFi, location, compile and flash in one place</div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen-bar">
+          <div class="screen-dots"><div class="screen-dot" style="background:#f87171"></div><div class="screen-dot" style="background:#fbbf24"></div><div class="screen-dot" style="background:#34d399"></div></div>
+          <div class="screen-url">192.168.x.x · Widgets</div>
+        </div>
+        <img src="webui_widgets.png" alt="Device UI widget layout and appearance">
+        <div class="screen-label">Device UI: widget layout (drag and drop) and live theme preview</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GETTING STARTED -->
+<section id="getting-started">
+  <div class="container">
+    <div class="sec-label">Setup guide</div>
+    <h2 class="sec-title">Up and running in 15 minutes</h2>
+    <p class="sec-sub">You'll need a soldering iron for exactly nothing. Plug in the display, flash the firmware, done.</p>
+
+    <div style="margin-top:40px;margin-bottom:48px;">
+      <div class="feat-cat-head" style="margin-bottom:16px;"><span class="feat-cat-label">Hardware you need</span><span class="feat-cat-line"></span></div>
+      <table class="hw-table">
+        <tr><th>Part</th><th>Notes</th><th>Link</th></tr>
+        <tr><td><strong>ESP32-2432S028</strong> ("Cheap Yellow Display")</td><td>2.8" 320×240 resistive touchscreen, ~$10</td><td><a href="https://www.aliexpress.com/item/1005010525144441.html" target="_blank">AliExpress ↗</a></td></tr>
+        <tr><td><strong>USB-C or Micro-USB cable</strong></td><td>For initial flash only</td><td>—</td></tr>
+        <tr><td><strong>3D printed stand</strong> (optional)</td><td>Designed to fit the CYD snugly</td><td><a href="https://makerworld.com/en/models/2725262-deskbuddy-your-personal-dashboard" target="_blank">MakerWorld ↗</a></td></tr>
+      </table>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-body">
+          <div class="step-title">Clone the repo and install PlatformIO</div>
+          <div class="step-desc">PlatformIO handles all library dependencies automatically. No manual installs.</div>
+          <pre><span class="cm"># Clone</span>
+git clone https://github.com/tiantiankaixingg/Deskbuddy.git
+cd Deskbuddy
+
+<span class="cm"># Install PlatformIO CLI (skip if already installed)</span>
+pip install platformio</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-body">
+          <div class="step-title">Create your secrets file</div>
+          <div class="step-desc">This file holds your WiFi credentials and location. It's gitignored and never committed. Use the <a href="#configure" style="color:var(--accent);">Configure section below</a> to generate and download it automatically.</div>
+          <pre><span class="cm"># Copy the example file</span>
+cp include/secrets.h.example include/secrets.h</pre>
+          <div class="info-box">
+            <h4>include/secrets.h</h4>
+            <ul>
+              <li><code>WIFI_SSID</code> / <code>WIFI_PASS</code>: your network credentials</li>
+              <li><code>DEFAULT_LAT</code> / <code>DEFAULT_LNG</code>: decimal coordinates for weather (e.g. <code>52.3676f</code>, <code>4.9041f</code>)</li>
+              <li><code>DEFAULT_LOCATION</code>: city name shown on the device</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-body">
+          <div class="step-title">Flash over USB</div>
+          <div class="step-desc">Plug in the CYD, then run one command. PlatformIO picks the right port automatically on most systems.</div>
+          <pre>pio run --target upload</pre>
+          <div class="step-desc" style="margin-top:8px;">Or launch the full local configurator for a browser-based build, flash and OTA interface:</div>
+          <pre>python configurator.py</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-body">
+          <div class="step-title">Find the IP and open Device UI</div>
+          <div class="step-desc">After boot the device shows its IP on the status page (tap the ⓘ icon). Open it in any browser on your network. All further configuration happens there, no USB cable needed.</div>
+          <div class="info-box">
+            <h4>Flashing options</h4>
+            <ul>
+              <li><strong>USB</strong>: only needed for the initial flash or after changing <code>secrets.h</code></li>
+              <li><strong>OTA</strong>: push firmware wirelessly from <code>python configurator.py</code> or <code>curl -X POST http://&lt;ip&gt;/update -F firmware=@firmware.bin</code></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEVICE WEB UI -->
+<section id="webui">
+  <div class="container">
+    <div class="sec-label">No reflash required</div>
+    <h2 class="sec-title">Everything configurable live</h2>
+    <p class="sec-sub">Open <code>http://&lt;device-ip&gt;</code> in any browser on your network. Changes apply instantly and the device keeps running.</p>
+
+    <div class="webui-grid">
+      <div class="webui-list">
+        <div class="webui-item"><div class="webui-item-icon">🧩</div><div><div class="webui-item-title">Widget layout</div><div class="webui-item-desc">Drag and drop which 4 widgets appear on the home screen. Options include weather, UV, wind, hydration, class schedule, HA sensors, and more.</div></div></div>
+        <div class="webui-item"><div class="webui-item-icon">🎨</div><div><div class="webui-item-title">Theme & appearance</div><div class="webui-item-desc">10 background palettes, 12 accent colors, 3 text styles. Live preview updates as you pick so you can see exactly what the screen will look like before saving.</div></div></div>
+        <div class="webui-item"><div class="webui-item-icon">🏠</div><div><div class="webui-item-title">Home Assistant</div><div class="webui-item-desc">Set your HA URL, long-lived token, and up to 4 sensor + 4 control entity IDs. The device polls every 30 s over LAN.</div></div></div>
+        <div class="webui-item"><div class="webui-item-icon">📚</div><div><div class="webui-item-title">Class schedule & hydration</div><div class="webui-item-desc">Mon–Fri timetable with up to 6 classes a day (name + room), or paste a whole timetable into the bulk-import box. Also set your daily water goal.</div></div></div>
+        <div class="webui-item"><div class="webui-item-icon">⏱</div><div><div class="webui-item-title">Focus timer presets</div><div class="webui-item-desc">6 customisable timer presets (25 min, 45 min, etc.) plus full Pomodoro mode with configurable work / break / long-break durations.</div></div></div>
+        <div class="webui-item"><div class="webui-item-icon">🌙</div><div><div class="webui-item-title">Sleep & auto-dim</div><div class="webui-item-desc">Set idle timeout for dim mode and sleep mode separately. Touch anywhere to wake. Useful for keeping the display healthy overnight.</div></div></div>
+        <div class="webui-item"><div class="webui-item-icon">🌍</div><div><div class="webui-item-title">Location, timezone, units</div><div class="webui-item-desc">Change city name, coordinates, timezone (with DST), metric/imperial units, and date format. None of it needs a reflash.</div></div></div>
+        <div class="webui-item"><div class="webui-item-icon">🕰</div><div><div class="webui-item-title">Context clock & reminders</div><div class="webui-item-desc">Second timezone on the clock card for remote teams. Eye break (20-20-20) and movement reminder overlays with configurable intervals.</div></div></div>
+      </div>
+      <div>
+        <div class="screen-wrap" style="position:sticky;top:76px;">
+          <div class="screen-bar">
+            <div class="screen-dots"><div class="screen-dot" style="background:#f87171"></div><div class="screen-dot" style="background:#fbbf24"></div><div class="screen-dot" style="background:#34d399"></div></div>
+            <div class="screen-url">192.168.x.x</div>
+          </div>
+          <img src="webui_widgets.png" alt="Device web UI" style="width:100%;display:block;">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- API -->
+<section id="api">
+  <div class="container">
+    <div class="sec-label">REST API</div>
+    <h2 class="sec-title">Push notes from anywhere</h2>
+    <p class="sec-sub">Every DeskBuddy exposes a small REST API on your local network. Send notes from Home Assistant automations, shell scripts, browser bookmarks, or anything that can make an HTTP request.</p>
+
+    <div class="api-endpoints">
+      <div class="api-block">
+        <div class="api-head">
+          <span class="method post">POST</span>
+          <span class="api-path">/api/note</span>
+          <span class="api-desc">Send a note to the display</span>
+        </div>
+        <div class="api-body">
+          <pre><span class="cm"># Push a sticky note</span>
+curl -X POST http://&lt;device-ip&gt;/api/note \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Remember to water the plant"}'
+
+<span class="cm"># One-liner via GET (save as a browser bookmark)</span>
+curl "http://&lt;device-ip&gt;/note?msg=Stand+up+and+stretch"</pre>
+        </div>
+      </div>
+
+      <div class="api-block">
+        <div class="api-head">
+          <span class="method get">GET</span>
+          <span class="api-path">/api/note</span>
+          <span class="api-desc">Read the current note</span>
+        </div>
+        <div class="api-body">
+          <pre>curl http://&lt;device-ip&gt;/api/note
+<span class="cm">→ {"text": "Remember to water the plant"}</span></pre>
+        </div>
+      </div>
+
+      <div class="api-block">
+        <div class="api-head">
+          <span class="method post">POST</span>
+          <span class="api-path">/api/note/clear</span>
+          <span class="api-desc">Clear the note</span>
+        </div>
+        <div class="api-body">
+          <pre>curl -X POST http://&lt;device-ip&gt;/api/note/clear</pre>
+        </div>
+      </div>
+
+      <div class="api-block">
+        <div class="api-head">
+          <span class="method get">GET</span>
+          <span class="api-path">/api/status</span>
+          <span class="api-desc">Device status JSON</span>
+        </div>
+        <div class="api-body">
+          <pre>curl http://&lt;device-ip&gt;/api/status
+<span class="cm">→ {"uptime":3721,"ip":"192.168.1.42","wifi":"Online","classes_today":4,"hydration":5}</span></pre>
+        </div>
+      </div>
+
+      <div class="api-block">
+        <div class="api-head">
+          <span class="method post">POST</span>
+          <span class="api-path">/update</span>
+          <span class="api-desc">OTA firmware update</span>
+        </div>
+        <div class="api-body">
+          <pre><span class="cm"># Flash new firmware wirelessly (multipart form)</span>
+curl -X POST http://&lt;device-ip&gt;/update \
+  -F "firmware=@.pio/build/esp32dev/firmware.bin"
+<span class="cm">→ OK. Rebooting...</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box" style="margin-top:24px;">
+      <h4>Home Assistant example</h4>
+      <ul>
+        <li>Add a <code>rest_command</code> in HA config, then call it from automations, for example to push "Washing done" when the washing machine finishes.</li>
+        <li>Use the <code>/api/hydration/reset</code> endpoint with a morning HA automation to reset your water count at a custom time.</li>
+        <li>Pair <code>/note?msg=</code> with a browser bookmark for instant one-click notes from any device on your network.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- CONFIGURE / DOWNLOAD secrets.h -->
+<section id="configure">
+  <div class="container">
+    <div class="sec-label">Quick setup</div>
+    <h2 class="sec-title">Generate your secrets.h</h2>
+    <p class="sec-sub">Fill in your details below. Config saves to your browser automatically. Download the generated file and drop it into <code>include/secrets.h</code>, then run <code>pio run --target upload</code>.</p>
+
+    <div class="cfg-inner">
+      <div class="cfg-form">
+        <div class="cfg-form-title">Your configuration</div>
+
+        <div class="field-row">
+          <div class="field"><label>WiFi network (SSID)</label><input id="s-ssid" type="text" placeholder="MyNetwork" autocomplete="off"></div>
+          <div class="field"><label>WiFi password</label><input id="s-pass" type="password" placeholder="••••••••" autocomplete="off"></div>
+        </div>
+
+        <div class="field"><label>Location name</label><input id="s-location" type="text" placeholder="Amsterdam"></div>
+        <div class="field-row">
+          <div class="field"><label>Latitude</label><input id="s-lat" type="number" step="0.0001" placeholder="52.3676"></div>
+          <div class="field"><label>Longitude</label><input id="s-lng" type="number" step="0.0001" placeholder="4.9041"></div>
+        </div>
+
+        <button class="btn-dl" onclick="downloadSecretsH()">⬇ Download secrets.h</button>
+        <button class="btn-save-sm" onclick="saveConfig()" id="btnSave">💾 Save to browser</button>
+      </div>
+
+      <div class="cfg-steps">
+        <div class="cfg-step">
+          <div class="cfg-step-num">1</div>
+          <div>
+            <div class="cfg-step-title">Fill in WiFi & location</div>
+            <div class="cfg-step-desc">Enter your network credentials and city coordinates. Your browser saves this automatically. Nothing gets sent anywhere.</div>
+          </div>
+        </div>
+        <div class="cfg-step">
+          <div class="cfg-step-num">2</div>
+          <div>
+            <div class="cfg-step-title">Download secrets.h</div>
+            <div class="cfg-step-desc">Click the button. Place the downloaded file at <code>include/secrets.h</code> inside your cloned repo.</div>
+          </div>
+        </div>
+        <div class="cfg-step">
+          <div class="cfg-step-num">3</div>
+          <div>
+            <div class="cfg-step-title">Flash via USB</div>
+            <div class="cfg-step-desc">Run <code>pio run --target upload</code> or open <code>python configurator.py</code> for the full local browser interface.</div>
+          </div>
+        </div>
+        <div class="cfg-step">
+          <div class="cfg-step-num">4</div>
+          <div>
+            <div class="cfg-step-title">All future changes via browser</div>
+            <div class="cfg-step-desc">Open the device IP in your browser. Theme, widgets, HA sensors, timers: all configurable live. OTA keeps you up to date without USB.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-logo">🖥 DeskBuddy</div>
+      <div class="footer-credit" style="margin-top:10px;">Started as a fork of <a href="https://github.com/LextZip/Deskbuddy" style="color:var(--dim);text-decoration:underline;" target="_blank">LextZip/Deskbuddy</a>. Substantially rewritten with LovyanGFX, widget system, HA integration, class schedule, daily quote, theming, OTA, and more. MIT License.</div>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/tiantiankaixingg/Deskbuddy" target="_blank">GitHub</a>
+      <a href="https://github.com/tiantiankaixingg/Deskbuddy/blob/main/README.md" target="_blank">README</a>
+      <a href="https://makerworld.com/en/models/2725262-deskbuddy-your-personal-dashboard" target="_blank">3D Model</a>
+      <a href="https://www.aliexpress.com/item/1005010525144441.html" target="_blank">Buy hardware</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+const MODULES = {
+  ha: [
+    { id:'ha_sensors', icon:'🌡', title:'HA Sensors & Controls', type:'page', effort:'medium', builtin:true,
+      desc:'Dedicated HA tab. Up to 4 sensor entities (temp, humidity, anything) + 4 tap controls (switch/light/scene/script). Polls every 30 s over LAN.' },
+    { id:'ha_webhooks', icon:'🔔', title:'HA Push Webhooks', type:'api', effort:'medium', builtin:false,
+      desc:'Register DeskBuddy as a webhook receiver. HA automations push events like a washing machine finishing, a doorbell ring, or motion detected.' },
+    { id:'ha_now_playing', icon:'🎵', title:'Now Playing Widget', type:'widget', effort:'medium', builtin:false,
+      desc:'Show current Spotify/music track + artist via HA media_player entity. Skip/pause with a tap.' },
+  ],
+  notes: [
+    { id:'sticky_notes_api', icon:'📌', title:'Sticky Notes API', type:'api', effort:'easy', builtin:true,
+      desc:'POST /api/note sends a note to the display instantly. Up to 3 notes shown. Also readable via GET. Works from curl, scripts, or browser bookmarks.' },
+    { id:'get_note_api', icon:'🔗', title:'GET Note (bookmark)', type:'api', effort:'easy', builtin:true,
+      desc:'Set a sticky via GET /note?msg=text and save it as a browser bookmark for one-click notes from any device on your network.' },
+  ],
+  productivity: [
+    { id:'class_schedule', icon:'📚', title:'Class Schedule', type:'page', effort:'medium', builtin:true,
+      desc:'Dedicated Schedule tab for the current weekday: Mon-Fri, up to 6 classes a day, with class name and room. Paste a whole timetable into the bulk-import box to fill it in.' },
+    { id:'hydration_tracker', icon:'💧', title:'Hydration Tracker', type:'widget', effort:'easy', builtin:true,
+      desc:'Tap the water drop home widget to log a glass. Progress dots scale to your daily goal (configurable). Resets daily at midnight.' },
+    { id:'countdown_widget', icon:'⏳', title:'Countdown Widget', type:'widget', effort:'easy', builtin:true,
+      desc:'Home screen widget counting days to a target date. Set the label (e.g. Vacation) and target date in Device UI Settings.' },
+    { id:'pomodoro_mode', icon:'🍅', title:'Pomodoro Mode', type:'widget', effort:'easy', builtin:true,
+      desc:'Extends the Focus Timer with automatic work/break cycling. 25-min work → 5-min break → long break after 4 sessions. All durations configurable.' },
+    { id:'ambient_color', icon:'🎨', title:'Ambient Color Shift', type:'widget', effort:'medium', builtin:true,
+      desc:'Accent color drifts through the day so the panel reads calmer at night. Enable it in the Theme section of Device UI.' },
+    { id:'context_clock', icon:'🕰', title:'Context Clock', type:'widget', effort:'easy', builtin:true,
+      desc:'Shows a second timezone\'s current time on the clock card, below the date row. Short label (e.g. NYC) configurable in Device UI.' },
+    { id:'eye_break', icon:'👁', title:'Eye Break (20-20-20)', type:'widget', effort:'easy', builtin:true,
+      desc:'Every N minutes a full-screen overlay shows "Look away" with a 20-second countdown that auto-dismisses.' },
+    { id:'movement_reminder', icon:'🏃', title:'Movement Reminder', type:'widget', effort:'easy', builtin:true,
+      desc:'Every N minutes a full-screen overlay shows "Time to move!" — tap anywhere to dismiss.' },
+    { id:'wfh_commute', icon:'🚶', title:'WFH Commute Ritual', type:'widget', effort:'easy', builtin:false,
+      desc:'10-min commute ritual timer at day-start. Psychologically separates home mode from work mode.' },
+  ],
+  creative: [
+    { id:'lunar_phase', icon:'🌙', title:'Lunar Phase Widget', type:'widget', effort:'easy', builtin:false,
+      desc:'Calculates current moon phase locally with no API needed. Pixel-art moon in the correct phase.' },
+    { id:'daily_quote', icon:'💬', title:'Daily Quote', type:'page', effort:'easy', builtin:true,
+      desc:'Built-in Quote page (每日一句): 25 quotes rotating by date, no network needed. Set your own line in the device web UI, or push one with POST /api/note.' },
+    { id:'ghost_mode', icon:'🕯', title:'Ghost Mode', type:'widget', effort:'easy', builtin:false,
+      desc:'Long-press dim: only tiny clock remains, rest goes almost dark. For deep focus.' },
+    { id:'tamagotchi', icon:'🐣', title:'Tamagotchi Desk Pet', type:'widget', effort:'hard', builtin:false,
+      desc:'Pixel-art creature fed by hitting your daily goals. Sleeps during focus sessions, sad if you miss days.' },
+  ],
+};
+
+const CAT_LABELS = {
+  ha: '🏠 Home Assistant',
+  notes: '📌 Notes & Quick API',
+  productivity: '🎯 Productivity',
+  creative: '✨ Creative & Wild',
+};
+
+function renderFeatures() {
+  const container = document.getElementById('feat-cats');
+  container.innerHTML = '';
+  for (const [cat, mods] of Object.entries(MODULES)) {
+    const section = document.createElement('div');
+    section.innerHTML = `<div class="feat-cat-head"><span class="feat-cat-label">${CAT_LABELS[cat] || cat}</span><span class="feat-cat-line"></span></div><div class="feat-grid" id="grid-${cat}"></div>`;
+    container.appendChild(section);
+    const grid = section.querySelector('.feat-grid');
+    for (const m of mods) {
+      const typeClass = {'page':'page','widget':'widget','api':'api'}[m.type] || '';
+      const effortLabel = {'easy':'⚡ Quick win','medium':'🔧 Medium','hard':'🏗 Complex'}[m.effort] || '';
+      const badge = m.builtin
+        ? '<span class="badge-builtin">Built in</span>'
+        : '<span class="badge-soon">Coming soon</span>';
+      grid.innerHTML += `
+        <div class="feat-card ${m.builtin ? 'builtin' : 'soon'}">
+          <div class="feat-top">
+            <div class="feat-header"><div class="feat-icon">${m.icon}</div><div class="feat-title">${m.title}</div></div>
+            <div>${badge}</div>
+          </div>
+          <div class="feat-tags"><span class="tag ${typeClass}">${m.type}</span><span class="tag">${effortLabel}</span></div>
+          <div class="feat-desc">${m.desc}</div>
+        </div>`;
+    }
+  }
+}
+
+// ── Config / secrets.h ────────────────────────────────────────────────────
+
+const DEFAULT_CONFIG = {
+  wifi_ssid:'', wifi_pass:'',
+  location:'Amsterdam', lat:52.3676, lng:4.9041
+};
+
+let config = {};
+
+function loadFromStorage() {
+  try {
+    const s = localStorage.getItem('deskbuddy-config');
+    return s ? Object.assign({}, DEFAULT_CONFIG, JSON.parse(s)) : Object.assign({}, DEFAULT_CONFIG);
+  } catch(e) { return Object.assign({}, DEFAULT_CONFIG); }
+}
+
+function loadFormUI() {
+  document.getElementById('s-ssid').value     = config.wifi_ssid || '';
+  document.getElementById('s-pass').value     = config.wifi_pass || '';
+  document.getElementById('s-location').value = config.location  || '';
+  document.getElementById('s-lat').value      = config.lat       || '';
+  document.getElementById('s-lng').value      = config.lng       || '';
+}
+
+function collectForm() {
+  config.wifi_ssid = document.getElementById('s-ssid').value;
+  config.wifi_pass = document.getElementById('s-pass').value;
+  config.location  = document.getElementById('s-location').value || 'Amsterdam';
+  config.lat       = parseFloat(document.getElementById('s-lat').value) || 52.3676;
+  config.lng       = parseFloat(document.getElementById('s-lng').value) || 4.9041;
+}
+
+function saveConfig() {
+  collectForm();
+  try {
+    localStorage.setItem('deskbuddy-config', JSON.stringify(config));
+    const btn = document.getElementById('btnSave');
+    btn.textContent = '✓ Saved';
+    setTimeout(function() { btn.textContent = '💾 Save to browser'; }, 1500);
+  } catch(e) {}
+}
+
+function downloadSecretsH() {
+  collectForm();
+  saveConfig();
+  const lat = parseFloat(config.lat).toFixed(4);
+  const lng = parseFloat(config.lng).toFixed(4);
+  const esc = function(s) { return (s || '').replace(/\\/g,'\\\\').replace(/"/g,'\\"'); };
+  const content = [
+    '#pragma once',
+    '',
+    '#define WIFI_SSID "' + esc(config.wifi_ssid) + '"',
+    '#define WIFI_PASS "' + esc(config.wifi_pass) + '"',
+    '',
+    '#define DEFAULT_LAT      ' + lat + 'f',
+    '#define DEFAULT_LNG      ' + lng + 'f',
+    '#define DEFAULT_LOCATION "' + esc(config.location) + '"',
+    ''
+  ].join('\n');
+  const blob = new Blob([content], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'secrets.h';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+  toast('ok', 'Downloaded secrets.h', 'Place it in include/secrets.h of your cloned repo.');
+}
+
+let _saveTimer;
+['s-ssid','s-pass','s-location','s-lat','s-lng'].forEach(function(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', function() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(saveConfig, 800);
+  });
+});
+
+function toast(type, title, msg) {
+  const wrap = document.getElementById('toastWrap');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = '<div class="toast-icon">' + (type==='ok'?'✅':'❌') + '</div>'
+    + '<div class="toast-body"><div class="toast-title">' + title + '</div>'
+    + (msg ? '<div class="toast-msg">' + msg + '</div>' : '') + '</div>'
+    + '<button class="toast-close" onclick="this.parentElement.remove()">×</button>';
+  wrap.appendChild(t);
+  setTimeout(function() {
+    if (!t.parentElement) return;
+    t.classList.add('dying');
+    setTimeout(function() { t.remove(); }, 220);
+  }, 5000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+config = loadFromStorage();
+loadFormUI();
+renderFeatures();
+</script>
+</body>
+</html>

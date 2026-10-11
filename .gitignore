@@ -1,0 +1,9 @@
+# Build output
+.pio/
+build.log
+
+# Local secrets — copy secrets.h.example to secrets.h and fill in your values
+include/secrets.h
+
+# Local configurator state — generated from secrets.h
+deskbuddy_config.json

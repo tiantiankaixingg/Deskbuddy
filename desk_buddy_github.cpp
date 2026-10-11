@@ -68,9 +68,9 @@ TFT_eSprite sprSmall = TFT_eSprite(&tft);
 // =========================================================
 // LOCATION
 // =========================================================
-float LAT = 52.5200f;
-float LNG = 13.4050f;
-String locationName = "Berlin";
+float LAT = 52.3676f;
+float LNG = 4.9041f;
+String locationName = "Amsterdam";
 
 // =========================================================
 // THEME
@@ -996,9 +996,9 @@ void loadStoredSettings() {
 
   notesText        = prefs.getString("notes", "No notes yet.");
   buddyNickname    = prefs.getString("nickname", "");
-  locationName     = prefs.getString("locname", "Berlin");
-  LAT              = prefs.getFloat("lat", 52.5200f);
-  LNG              = prefs.getFloat("lng", 13.4050f);
+  locationName     = prefs.getString("locname", "Amsterdam");
+  LAT              = prefs.getFloat("lat", 52.3676f);
+  LNG              = prefs.getFloat("lng", 4.9041f);
   sleepIntervalMin = prefs.getInt("sleepMin", 10);
   unitKey          = prefs.getString("units", "metric");
   regionFormatKey  = prefs.getString("region", "europe");
@@ -2366,7 +2366,7 @@ void handleRoot() {
   page += "<div><label class='label'>Location name</label><input name='locname' value='" + htmlEscape(locationName) + "'></div>";
   page += "<div><label class='label'>Latitude</label><input name='lat' value='" + String(LAT, 6) + "'></div>";
   page += "<div><label class='label'>Longitude</label><input name='lng' value='" + String(LNG, 6) + "'></div>";
-  page += "</div><div class='footer-note'>Example Berlin: latitude 52.5200, longitude 13.4050.</div></div>";
+  page += "</div><div class='footer-note'>Enter your city's latitude and longitude (e.g. from maps.google.com).</div></div>";
   page += "</div></div>";
 
   page += "<div class='panel' data-panel='widgets'>";
